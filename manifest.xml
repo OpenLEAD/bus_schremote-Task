@@ -1,0 +1,22 @@
+<package>
+  <description brief="Bus for Ethernet conversor MuxDemux">
+  Implements the component that manages IO interface with the sch_remote device.
+  </description>
+  <author>Eduardo Elael/eduardo.elael@tenkel.com</author>
+  <license></license>
+  <url>http://</url>
+  <logo>http://</logo>
+  <!--
+   To add any dependencies use the depend tag
+  <depend package="dummy-dependency-0" />
+	...
+  <depend package="dummy-dependency-n-1" />
+  <depend package="dummy-dependency-n" />
+  -->
+  <depend package="orogen" />
+  <depend package="rtt" />
+  <depend package="base/orogen/types" />
+  <depend package="drivers/iodrivers_base" />
+  <depend package="drivers/orogen/iodrivers_base" />
+  <depend package="drivers/orogen/raw_io" />
+</package>

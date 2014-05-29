@@ -1,0 +1,32 @@
+name "bus_schremote"
+
+version "0.1"
+
+# using_library "bus_schremote"
+# import_types_from "bus_schremote/bus_schremoteType.hpp"
+
+using_library "raw_io"
+import_types_from "raw_io/raw_io.hpp"
+
+import_types_from "iodrivers_base"
+
+import_types_from "bus_schremoteTypes.hpp"
+import_types_from "base"
+# import_types_from "iodrivers_base/RawPacket.hpp"
+
+
+task_context "Task" do
+
+    needs_configuration
+
+    property "uarts", "bus_schremote/UARTsConfig"
+    property "digitals", "bus_schremote/PinsConfig"
+
+    dynamic_input_port /\w+/, "/iodrivers_base/RawPacket"
+
+    dynamic_output_port /\w+/, "/iodrivers_base/RawPacket"
+    dynamic_output_port /\w+/, "/raw_io/Digital"
+
+    periodic 0.1
+end
+
