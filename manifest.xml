@@ -16,7 +16,6 @@
   <depend package="orogen" />
   <depend package="rtt" />
   <depend package="base/orogen/types" />
-  <depend package="drivers/iodrivers_base" />
   <depend package="drivers/orogen/iodrivers_base" />
   <depend package="drivers/orogen/raw_io" />
 </package>

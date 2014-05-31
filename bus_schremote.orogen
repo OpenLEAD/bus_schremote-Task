@@ -12,15 +12,16 @@ import_types_from "iodrivers_base"
 
 import_types_from "bus_schremoteTypes.hpp"
 import_types_from "base"
-# import_types_from "iodrivers_base/RawPacket.hpp"
 
 
 task_context "Task" do
 
     needs_configuration
 
+    property "ip", "/std/string"
+    property "mac", "/std/string", ""
     property "uarts", "bus_schremote/UARTsConfig"
-    property "digitals", "bus_schremote/PinsConfig"
+    property "digital_ins", "bus_schremote/DinsConfig"
 
     dynamic_input_port /\w+/, "/iodrivers_base/RawPacket"
 

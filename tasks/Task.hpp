@@ -2,8 +2,14 @@
 
 #ifndef BUS_SCHREMOTE_TASK_TASK_HPP
 #define BUS_SCHREMOTE_TASK_TASK_HPP
+#define UARTbufferMAX 256
 
 #include "bus_schremote/TaskBase.hpp"
+#include <rtt/OutputPort.hpp>
+#include <rtt/InputPort.hpp>
+#include <bus_schremoteTypes.hpp>
+#include <stdio.h>
+#include "tasks/libschremote.h"
 
 namespace bus_schremote {
 
@@ -25,6 +31,45 @@ namespace bus_schremote {
     {
 	friend class TaskBase;
     protected:
+	SR_HANDLE srh;
+	static const bool AnIn[12];
+	static const bool I2C[12];
+	static const bool UART_SPI_CNT[12];
+	static const unsigned short UARTbuffer;
+	unsigned char UARTpacket[UARTbufferMAX];
+	unsigned short UARTcnt;
+
+	bool PinUse[12];
+	
+	char ip_addr[16];
+
+	bool portsConfig();
+
+	struct Din
+	{
+		DinConfig pinconfig;
+		RTT::OutputPort<raw_io::Digital>* output;
+	};
+
+	std::vector<Din> din_mapping;
+
+
+	struct UART
+	{
+		UARTConfig uartconfig;
+		RTT::OutputPort<iodrivers_base::RawPacket>* output;
+		RTT::InputPort<iodrivers_base::RawPacket>* input;
+	};
+
+	std::vector<UART> uart_0_mapping;
+	int uart_0_index;
+
+	std::vector<UART> uart_1_mapping;
+	int uart_1_index;
+
+
+
+//	std::map<RTT::OutputPort<raw_io::Digital>* , DinConfig> din_mapping;
 
 
 
