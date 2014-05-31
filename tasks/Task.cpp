@@ -208,13 +208,36 @@ bool Task::configureHook()
 								(unsigned int) (l->ip>>8) & 0xff, 
 								(unsigned int) (l->ip>>16) & 0xff, 
 								(unsigned int) (l->ip>>24) & 0xff);
+				RTT::log(RTT::Info) << "Device IP: " << ip_addr << RTT::endlog();				
 				srh = sr_open_eth(ip_addr);
 				sr_discover_free(list);
 				return (srh!=NULL && portsConfig());
 			}
 
 		}
+		//IF NOT FOUND - show all MAC/IP found
 		RTT::log(RTT::Error) << _mac.get() << " device not found." << RTT::endlog();
+		RTT::log(RTT::Warning) << "Devices found: \n";
+		l = list;
+		while (l != NULL)
+		{
+			sprintf(ip_addr,"%u.%u.%u.%u",  (unsigned int) l->ip & 0xff, 
+							(unsigned int) (l->ip>>8) & 0xff, 
+							(unsigned int) (l->ip>>16) & 0xff, 
+							(unsigned int) (l->ip>>24) & 0xff);
+			RTT::log(RTT::Warning) <<  "ip:" << ip_addr ;
+
+      			sprintf(mac_addr,"%02X-%02X-%02X-%02X-%02X-%02X",(int)l->mac[0], 
+									(int)l->mac[1], 
+									(int)l->mac[2], 
+									(int)l->mac[3], 
+									(int)l->mac[4], 
+									(int)l->mac[5]);
+			RTT::log(RTT::Warning) <<  "\tmac:" << mac_addr << " \n";
+			l = l->next;	
+		}
+			RTT::log(RTT::Warning) <<  RTT::endlog();
+		
 		sr_discover_free(list);
     		return false;
 	}

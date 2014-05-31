@@ -42,6 +42,7 @@ namespace bus_schremote {
 	bool PinUse[12];
 	
 	char ip_addr[16];
+	char mac_addr[18];
 
 	bool portsConfig();
 

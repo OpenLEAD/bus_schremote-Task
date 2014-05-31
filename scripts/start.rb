@@ -16,7 +16,7 @@ Orocos.run 'bus_schremote::Task' => 'bus_schremote' do
   # even configured
   
   bus_schremote.ip = '192.168.1.255' #'192.168.1.191'
-  bus_schremote.mac = '00:04:A3:31:00:12'
+  bus_schremote.mac = '00:04:A3:31:00:14'
   # bus_schremote.digital_ins = [{:pin => 9, :name => 'induc1'},{:pin => 10, :name => 'induc2'},{:pin => 10, :name => 'induc22'}]
   bus_schremote.uarts = [{:uart_module => 0, :mode => 3, :tx => 4, :rx => 5, :baud => 115200, :name => 'uart0'}, {:uart_module => 1, :mode => 3, :tx => 10, :rx => 9, :baud => 115200, :name => 'uart1'}]
 
@@ -37,11 +37,11 @@ Orocos.run 'bus_schremote::Task' => 'bus_schremote' do
   
   while true
     uart0_in.write(msg_in)
-    puts "msg sent by ruby"
     sleep 1
   end 
 
   Readline::readline("Press ENTER to exit\n")
+  
 
 end
 
