@@ -30,6 +30,8 @@ task_context "Task" do
     dynamic_output_port /\w+/, "/iodrivers_base/RawPacket"
     dynamic_output_port /\w+/, "/raw_io/Digital"
 
+    port_driven
+
     periodic 0.0001
 end
 
