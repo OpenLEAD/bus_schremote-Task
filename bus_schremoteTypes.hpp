@@ -22,13 +22,13 @@ enum {
 	UART_MODE_STOP_TWO = 0x0001
 };
 
-struct DinConfig
+struct DConfig
 {
         int pin;
 	std::string name;
 };
 
-typedef std::vector<DinConfig> DinsConfig;
+typedef std::vector<DConfig> DsConfig;
 
 struct UARTConfig
 {

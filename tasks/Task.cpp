@@ -30,8 +30,8 @@ Task::~Task()
 bool Task::portsConfig(){
 	{/* Configuring Digital Orogen-Outputs (Digital Device-Input)  */
 	RTT::OutputPort<raw_io::Digital>* new_output_port;
-	DinsConfig din_vector = _digital_ins.get();
-	for(DinsConfig::iterator it = din_vector.begin(); it != din_vector.end(); ++it) {
+	DsConfig din_vector = _digital_ins.get();
+	for(DsConfig::iterator it = din_vector.begin(); it != din_vector.end(); ++it) {
 
 		//Warning pin in use
 		if(PinUse[it->pin])
@@ -52,6 +52,32 @@ bool Task::portsConfig(){
 		din_mapping.push_back(din);	
 
 	}}
+
+	{/* Configuring Digital Orogen-Input (Digital Device-Output)  */
+	RTT::InputPort<raw_io::Digital>* new_input_port;
+	DsConfig dout_vector = _digital_outs.get();
+	for(DsConfig::iterator it = dout_vector.begin(); it != dout_vector.end(); ++it) {
+
+		//Warning pin in use
+		if(PinUse[it->pin])
+			RTT::log(RTT::Warning) << "Two devices using the same pin. Pin configuration will be overwritten." << RTT::endlog();
+
+		//Setting pin up
+		if(!sr_pin_setup(srh,it->pin,sr_pt_dout_low)){
+			RTT::log(RTT::Error) << it->name << " could not be set up at pin " << it->pin << 
+						". The followin error was received: " << sr_error_info(srh) << RTT::endlog();
+		continue;
+		}
+		PinUse[it->pin]=true;
+		
+		// Creating Orogen component ports
+		new_input_port = new RTT::InputPort<raw_io::Digital>(it->name);
+		ports()->addPort(it->name, *new_input_port);
+		Dout dout = {*it, new_input_port};
+		dout_mapping.push_back(dout);	
+
+	}}
+
 
 
 	{/* Configuring UART Orogen-Outputs (UART Device-Input)  */
@@ -263,6 +289,16 @@ void Task::updateHook()
 		out.time = base::Time::now();
 		 (it->output)->write(out);
 	}
+	
+	//Digital input
+	raw_io::Digital in;
+	for(std::vector<Dout>::iterator it = dout_mapping.begin(); it != dout_mapping.end(); ++it) {
+		(it->input)->read(in);
+		if(!sr_pin_set(srh,it->pinconfig.pin,in.data)){
+			RTT::log(RTT::Warning) << "Pin "<< it->pinconfig.pin << " from port " << it->pinconfig.name << " could not be written." << RTT::endlog();
+		continue;		
+		}
+	}
 
 	//UART module 0
 	if(uart_0_index >= 0){
@@ -372,6 +408,14 @@ void Task::cleanupHook()
 		delete it->output;
 	}
 	
+	
+	for(std::vector<Dout>::iterator it = dout_mapping.begin(); it != dout_mapping.end(); ++it) {
+		ports()->removePort(it->input->getName());
+		PinUse[(it->pinconfig).pin]=false;
+		delete it->input;
+	}
+
+
 	for(std::vector<UART>::iterator it = uart_0_mapping.begin(); it != uart_0_mapping.end(); ++it) {
 		ports()->removePort(it->output->getName());
 		ports()->removePort(it->input->getName());

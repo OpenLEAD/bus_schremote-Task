@@ -48,11 +48,19 @@ namespace bus_schremote {
 
 	struct Din
 	{
-		DinConfig pinconfig;
+		DConfig pinconfig;
 		RTT::OutputPort<raw_io::Digital>* output;
 	};
 
 	std::vector<Din> din_mapping;
+
+	struct Dout
+	{
+		DConfig pinconfig;
+		RTT::InputPort<raw_io::Digital>* input;
+	};
+
+	std::vector<Dout> dout_mapping;
 
 
 	struct UART

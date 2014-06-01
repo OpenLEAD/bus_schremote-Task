@@ -21,13 +21,15 @@ task_context "Task" do
     property "ip", "/std/string"
     property "mac", "/std/string", ""
     property "uarts", "bus_schremote/UARTsConfig"
-    property "digital_ins", "bus_schremote/DinsConfig"
+    property "digital_ins", "bus_schremote/DsConfig"
+    property "digital_outs", "bus_schremote/DsConfig"
 
     dynamic_input_port /\w+/, "/iodrivers_base/RawPacket"
+    dynamic_input_port /\w+/, "/raw_io/Digital"
 
     dynamic_output_port /\w+/, "/iodrivers_base/RawPacket"
     dynamic_output_port /\w+/, "/raw_io/Digital"
 
-    periodic 0.1
+    periodic 0.0001
 end
 
