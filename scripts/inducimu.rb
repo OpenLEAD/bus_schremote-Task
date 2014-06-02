@@ -5,9 +5,11 @@ include Orocos
 Orocos.initialize
 
 
-Orocos.run 'bus_schremote::Task' => 'bus_schremote' do  
+Orocos.run 'bus_schremote::Task' => 'bus_schremote',
+	'spatial::Task' => 'spatial' do    
   
   bus_schremote = Orocos.name_service.get 'bus_schremote'
+  spatial = Orocos.name_service.get 'spatial'
   
   # Never assume that a component supports being reconnected
   # at runtime, it might not be the case
@@ -25,39 +27,13 @@ Orocos.run 'bus_schremote::Task' => 'bus_schremote' do
   # bus_schremote.uarts = [{:uart_module => 0, :mode => 0, :tx => 4, :rx => 0, :baud => 115200, :name => 'uart0'}]
   bus_schremote.configure
 
-  #inducout = bus_schremote.inducout.writer
-  #uart0_out = bus_schremote.uart0_out.reader
-
-  #uart1_in = bus_schremote.uart1_in.writer
-  #uart1_out = bus_schremote.uart1_out.reader
-
-  #msg_in = inducout.new_sample
-  #msg_in.data = true;
-#  msg_in.data = [1,4,5]
 
 
-#  msg_in = uart0_in.new_sample
-#  msg_in.time = Types::Base::Time.new
-#  msg_in.data = [1,4,5]
-
+  bus_schremote.imu_out.connect_to spatial.com_input
+  spatial.configure
 
   bus_schremote.start
-
-#  while true
-#    msg_in.time = Types::Base::Time.new
-#    inducout.write(msg_in)
-#    if msg_in.data
-#       msg_in.data = false
-#    else
-#       msg_in.data = true
-#    end
-
-#    sleep 1
-#  end
-  #while true
-    #uart0_in.write(msg_in)
-   # sleep 1
-  #end 
+  spatial.start
 
   Readline::readline("Press ENTER to exit\n") do
   end
