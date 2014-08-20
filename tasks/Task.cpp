@@ -192,6 +192,61 @@ bool Task::portsConfig(){
 	return true;
 }
 
+void Task::displayAllDevices(SR_IPLIST* list)
+{
+    RTT::log(RTT::Warning) << "Devices found: \n";
+    while (list != NULL)
+    {
+        log(Warning)
+            <<  "  ip("
+            << (unsigned int) l->ip & 0xff << "."
+            << (unsigned int) (l->ip>>8) & 0xff << "."
+            << (unsigned int) (l->ip>>16) & 0xff << "."
+            << (unsigned int) (l->ip>>24) & 0xff << ")"
+            << " mac("
+            << hex << (int)l->mac[0] << "-"
+            << hex << (int)l->mac[1] << "-"
+            << hex << (int)l->mac[2] << "-"
+            << hex << (int)l->mac[3] << "-"
+            << hex << (int)l->mac[4] << "-"
+            << hex << (int)l->mac[5] << endlog();
+        l = l->next;	
+    }
+}
+
+std::string Task::findDeviceIP(std::string const& bcast_addr, std::string const& mac, int port)
+{
+	SR_IPLIST *list = sr_discover(bcast_addr.c_str(), port);
+	if (!list)
+	{  
+		log(RTT::Error) << "There are no devices on " << bcast_addr << endlog();
+		return std::string();
+	}
+
+    SR_IPLIST *l = list;
+    while (l != NULL && std::string(l->mac, 6) != mac)
+        l = l->next;
+
+    if (!l)
+    {
+        log(Error) << _mac.get() << " device not found." << endlog();
+        displayAllDevices(list);
+        sr_discover_free(list);
+        return std::string();
+    }
+
+    std::ostringstream formatter;
+    formatter <<
+        (unsigned int) l->ip & 0xff << "."
+        (unsigned int) (l->ip>>8) & 0xff << "."
+        (unsigned int) (l->ip>>16) & 0xff << "."
+        (unsigned int) (l->ip>>24) & 0xff;
+
+    log(Info) << "Found device with IP " << formatter.str() << endlog();
+    sr_discover_free(list);
+    return formatter.str();
+}
+
 /// The following lines are template definitions for the various state machine
 // hooks defined by Orocos::RTT. See Task.hpp for more detailed
 // documentation about them.
@@ -201,74 +256,22 @@ bool Task::configureHook()
     if (! TaskBase::configureHook())
         return false;
 	
-	const char* bcast_addr = _ip.get().c_str();
-	
-	if(_mac.get()==""){
-		memcpy(ip_addr, bcast_addr,strlen(bcast_addr)+1);
-		srh = sr_open_eth(ip_addr);
-		return (srh!=NULL && portsConfig());
-	}
+    std::string ip_addr;
+    // Auto discovery or explicit IP
+    if (_mac.get().empty())
+        ip_addr = _ip.get();
+    else
+        ip_addr = findDeviceIP(_ip.get(), _mac.get(), _port.get());
 
-	unsigned char mac[6];
-
-	sscanf(_mac.get().c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
-	
-
-	SR_IPLIST *list = sr_discover(bcast_addr);
-	if (list == NULL)
-	{  
-		//std::cerr << "Discover: FAIL\n could not find any device." << std::endl;
-		RTT::log(RTT::Error) << "Discover: FAIL. could not find any device." << RTT::endlog();
-		return false;
-	}
-	else
-	{
-		SR_IPLIST *l = list;
-		while (l != NULL)
-		{
-			if(memcmp ( mac, l->mac, 6 ))
-				l = l->next;
-			else
-			{
-				sprintf(ip_addr,"%u.%u.%u.%u",  (unsigned int) l->ip & 0xff, 
-								(unsigned int) (l->ip>>8) & 0xff, 
-								(unsigned int) (l->ip>>16) & 0xff, 
-								(unsigned int) (l->ip>>24) & 0xff);
-				RTT::log(RTT::Info) << "Device IP: " << ip_addr << RTT::endlog();				
-				srh = sr_open_eth(ip_addr);
-				sr_discover_free(list);
-				return (srh!=NULL && portsConfig());
-			}
-
-		}
-		//IF NOT FOUND - show all MAC/IP found
-		RTT::log(RTT::Error) << _mac.get() << " device not found." << RTT::endlog();
-		RTT::log(RTT::Warning) << "Devices found: \n";
-		l = list;
-		while (l != NULL)
-		{
-			sprintf(ip_addr,"%u.%u.%u.%u",  (unsigned int) l->ip & 0xff, 
-							(unsigned int) (l->ip>>8) & 0xff, 
-							(unsigned int) (l->ip>>16) & 0xff, 
-							(unsigned int) (l->ip>>24) & 0xff);
-			RTT::log(RTT::Warning) <<  "ip:" << ip_addr ;
-
-      			sprintf(mac_addr,"%02X-%02X-%02X-%02X-%02X-%02X",(int)l->mac[0], 
-									(int)l->mac[1], 
-									(int)l->mac[2], 
-									(int)l->mac[3], 
-									(int)l->mac[4], 
-									(int)l->mac[5]);
-			RTT::log(RTT::Warning) <<  "\tmac:" << mac_addr << " \n";
-			l = l->next;	
-		}
-			RTT::log(RTT::Warning) <<  RTT::endlog();
-		
-		sr_discover_free(list);
-    		return false;
-	}
-
+    srh = sr_open_eth(ip_addr, _port.get());
+    if (!srh)
+    {
+        log(Error) << "could not open device at " << ip_addr << ":" << _port.get() << endlog();
+        return false;
+    }
+    return portsConfig();
 }
+
 bool Task::startHook()
 {
     if (! TaskBase::startHook())
