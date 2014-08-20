@@ -269,7 +269,12 @@ bool Task::configureHook()
         log(Error) << "could not open device at " << ip_addr << ":" << _port.get() << endlog();
         return false;
     }
-    return portsConfig();
+    if (!portsConfig())
+    {
+        sr_close(srh);
+        return false;
+    }
+    return true;
 }
 
 bool Task::startHook()
