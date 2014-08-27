@@ -2,7 +2,6 @@
 
 #ifndef BUS_SCHREMOTE_TASK_TASK_HPP
 #define BUS_SCHREMOTE_TASK_TASK_HPP
-#define UARTbufferMAX 256
 
 #include "bus_schremote/TaskBase.hpp"
 #include <rtt/OutputPort.hpp>
@@ -32,52 +31,64 @@ namespace bus_schremote {
 	friend class TaskBase;
     protected:
 	SR_HANDLE srh;
-	static const bool AnIn[12];
-	static const bool I2C[12];
-	static const bool UART_SPI_CNT[12];
-	static const unsigned short UARTbuffer;
-	unsigned char UARTpacket[UARTbufferMAX];
-	unsigned short UARTcnt;
+        static const int UART_MODULES_COUNT = 2;
+        static const int NUMBER_OF_PINS = 12;
+	static const bool AnIn[NUMBER_OF_PINS];
+	static const bool I2C[NUMBER_OF_PINS];
+	static const bool UART_SPI_CNT[NUMBER_OF_PINS];
+        static const unsigned short  UART_BUFFER_MAX = 65535u;
 
-	bool PinUse[12];
+        boost::uint8_t buffer[UART_BUFFER_MAX];
+        unsigned short digitalOutState;
 
-	bool portsConfig();
+        void validateDigitalIOConfiguration(
+                std::set<std::string>& portNames,
+                std::vector<bool>& usedPins,
+                DsConfig const& config) const;
+        void validateUARTPin(std::vector<bool> const& usedPins, unsigned int pin, unsigned int module);
+        void validateUARTConfiguration(
+                std::set<std::string>& portNames,
+                std::vector<bool>& usedPins,
+                UARTsConfig const& uarts);
+        void validateConfiguration();
+        void resetHardware();
+        void setupHardware();
+
+        template<typename MappingType>
+        void createDigitalPorts(DsConfig const& config, MappingType& mapping);
+        void createUARTPorts();
+
+        void readDin();
+        void writeDout();
+        void readUART(int uart_module,
+                RTT::OutputPort<iodrivers_base::RawPacket>& port);
+        void writeUART(int uart_module,
+                RTT::InputPort<iodrivers_base::RawPacket>& port);
 
 	struct Din
 	{
-		DConfig pinconfig;
-		RTT::OutputPort<raw_io::Digital>* output;
+            typedef RTT::OutputPort<raw_io::Digital> PortType;
+            DConfig pinconfig;
+            PortType* port;
 	};
-
 	std::vector<Din> din_mapping;
 
 	struct Dout
 	{
-		DConfig pinconfig;
-		RTT::InputPort<raw_io::Digital>* input;
+            typedef RTT::InputPort<raw_io::Digital> PortType;
+            DConfig pinconfig;
+            PortType* port;
 	};
-
 	std::vector<Dout> dout_mapping;
-
 
 	struct UART
 	{
-		UARTConfig uartconfig;
-		RTT::OutputPort<iodrivers_base::RawPacket>* output;
-		RTT::InputPort<iodrivers_base::RawPacket>* input;
+            bool enabled;
+            UARTConfig uartconfig;
+            RTT::OutputPort<iodrivers_base::RawPacket>* output;
+            RTT::InputPort<iodrivers_base::RawPacket>* input;
 	};
-
-	std::vector<UART> uart_0_mapping;
-	int uart_0_index;
-
-	std::vector<UART> uart_1_mapping;
-	int uart_1_index;
-
-
-
-//	std::map<RTT::OutputPort<raw_io::Digital>* , DinConfig> din_mapping;
-
-
+        UART uarts[2];
 
     public:
         /** TaskContext constructor for Task

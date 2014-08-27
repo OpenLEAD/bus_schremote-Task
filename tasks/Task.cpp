@@ -2,249 +2,264 @@
 
 #include "Task.hpp"
 #include <rtt/Logger.hpp>
+#include <boost/lexical_cast.hpp>
 
 using namespace bus_schremote;
+using namespace std;
+using namespace RTT;
+using boost::lexical_cast;
 
-const bool Task::AnIn[12]={0,0,0,0,1,1,1,1,1,1,0,0};
-const bool Task::I2C[12]={1,2,0,0,0,0,0,0,1,2,0,0};
-const bool Task::UART_SPI_CNT[12]={1,1,1,0,1,1,1,1,1,1,1,0};
-const unsigned short Task::UARTbuffer = UARTbufferMAX;
+const bool Task::AnIn[Task::NUMBER_OF_PINS]=
+    {false,false,false,false,true ,true ,true ,true ,true ,true ,false,false};
+const bool Task::I2C[Task::NUMBER_OF_PINS] =
+    {true ,true ,false,false,false,false,false,false,true ,true ,false,false};
+const bool Task::UART_SPI_CNT[Task::NUMBER_OF_PINS] =
+    {true ,true ,true ,false,true ,true ,true ,true ,true ,true ,true ,false};
 
-Task::Task(std::string const& name)
-    : TaskBase(name), srh(NULL), uart_0_index(-1), uart_1_index(-1)
+static string macToString(unsigned char const* mac)
 {
-	memset(PinUse,0,12);
-
+    ostringstream formatter;
+    formatter
+        << hex << static_cast<int>(mac[0]) << "-"
+        << hex << static_cast<int>(mac[1]) << "-"
+        << hex << static_cast<int>(mac[2]) << "-"
+        << hex << static_cast<int>(mac[3]) << "-"
+        << hex << static_cast<int>(mac[4]) << "-"
+        << hex << static_cast<int>(mac[5]);
+    return formatter.str();
 }
 
-Task::Task(std::string const& name, RTT::ExecutionEngine* engine)
-    : TaskBase(name, engine), srh(NULL), uart_0_index(-1), uart_1_index(-1)
+static string ipv4ToString(uint32_t ip)
 {
-	memset(PinUse,0,12);
+    ostringstream formatter;
+    formatter
+        << (ip & 0xff) << "."
+        << ((ip>>8) & 0xff) << "."
+        << ((ip>>16) & 0xff) << "."
+        << ((ip>>24) & 0xff);
+    return formatter.str();
+}
+
+Task::Task(string const& name)
+    : TaskBase(name), srh(NULL)
+{
+}
+
+Task::Task(string const& name, ExecutionEngine* engine)
+    : TaskBase(name, engine), srh(NULL)
+{
 }
 
 Task::~Task()
 {
 }
 
-bool Task::portsConfig(){
-	{/* Configuring Digital Orogen-Outputs (Digital Device-Input)  */
-	RTT::OutputPort<raw_io::Digital>* new_output_port;
-	DsConfig din_vector = _digital_ins.get();
-	for(DsConfig::iterator it = din_vector.begin(); it != din_vector.end(); ++it) {
-
-		//Warning pin in use
-		if(PinUse[it->pin])
-			RTT::log(RTT::Warning) << "Two devices using the same pin. Pin configuration will be overwritten." << RTT::endlog();
-
-		//Setting pin up
-		if(!sr_pin_setup(srh,it->pin,sr_pt_din_pullup)){
-			RTT::log(RTT::Error) << it->name << " could not be set up at pin " << it->pin << 
-						". The followin error was received: " << sr_error_info(srh) << RTT::endlog();
-		continue;
-		}
-		PinUse[it->pin]=true;
-		
-		// Creating Orogen component ports
-		new_output_port = new RTT::OutputPort<raw_io::Digital>(it->name);
-		ports()->addPort(it->name, *new_output_port);
-		Din din = {*it, new_output_port};
-		din_mapping.push_back(din);	
-
-	}}
-
-	{/* Configuring Digital Orogen-Input (Digital Device-Output)  */
-	RTT::InputPort<raw_io::Digital>* new_input_port;
-	DsConfig dout_vector = _digital_outs.get();
-	for(DsConfig::iterator it = dout_vector.begin(); it != dout_vector.end(); ++it) {
-
-		//Warning pin in use
-		if(PinUse[it->pin])
-			RTT::log(RTT::Warning) << "Two devices using the same pin. Pin configuration will be overwritten." << RTT::endlog();
-
-		//Setting pin up
-		if(!sr_pin_setup(srh,it->pin,sr_pt_dout_low)){
-			RTT::log(RTT::Error) << it->name << " could not be set up at pin " << it->pin << 
-						". The followin error was received: " << sr_error_info(srh) << RTT::endlog();
-		continue;
-		}
-		PinUse[it->pin]=true;
-		
-		// Creating Orogen component ports
-		new_input_port = new RTT::InputPort<raw_io::Digital>(it->name);
-		ports()->addPort(it->name, *new_input_port);
-		Dout dout = {*it, new_input_port};
-		dout_mapping.push_back(dout);	
-
-	}}
-
-
-
-	{/* Configuring UART Orogen-Outputs (UART Device-Input)  */
-	RTT::OutputPort<iodrivers_base::RawPacket>* new_output_port;
-	RTT::InputPort<iodrivers_base::RawPacket>* new_input_port;
-	UARTsConfig uart_vector = _uarts.get();
-	bool inverted_logic = false;
-	for(UARTsConfig::iterator it = uart_vector.begin(); it != uart_vector.end(); ++it) {
-		//Checking UART capable pin
-		if(!(UART_SPI_CNT[it->rx]&&UART_SPI_CNT[it->tx])){
-			RTT::log(RTT::Error) << "Non UART pin selected for: " + it->name + ". Ports could not be created" << RTT::endlog();
-			continue;
-		}
-		
-		//Warning pin in use
-		if(PinUse[it->tx]||PinUse[it->rx])
-			RTT::log(RTT::Warning) << "Two devices using the same pin. Pin configuration will be overwritten." << RTT::endlog();
-		
-		
-		
-		
-		//Pin configuration with error checking
-
-		//rx
-		if(!sr_pin_setup(srh,it->rx,sr_pt_din_pullup)){
-			RTT::log(RTT::Error) << "rx UART could not be set up at pin " << it->rx << 
-						". The followin error was received: " << sr_error_info(srh) << RTT::endlog();
-			continue;
-		}
-
-		//tx
-		bool tx_pin_done;
-		if(inverted_logic)
-			tx_pin_done = sr_pin_setup(srh,it->tx,sr_pt_dout_opendrain_short);
-		else
-			tx_pin_done = sr_pin_setup(srh,it->tx,sr_pt_dout_opendrain_open);
-
-		if(!tx_pin_done){
-			RTT::log(RTT::Error) << "tx UART could not be set up at pin " << it->tx << 
-						". The following error was received: " << sr_error_info(srh) << RTT::endlog();
-			continue;
-		}
-
-
-		//UART mode check
-		if(it->mode > 5){
-			RTT::log(RTT::Error) << "Mode " << it->mode << " do not exist. Try using a combination (by OR operation) of parity mode and stopbit mode from MODES enum." << RTT::endlog();
-			continue;
-		}
-
-		
-		//UART module check
-		if(it->uart_module == 0)
-			it->uart_module = 0;
-		else{
-			if(it->uart_module != 1)
-				RTT::log(RTT::Warning) << "UART module "<< it->uart_module << " do not exist. Loading at UART module 1." << RTT::endlog();
-			it->uart_module = 1;				
-		}
-		
-		PinUse[it->rx]=true;
-		PinUse[it->tx]=true;
-
-		// Creating Orogen component ports
-		new_output_port = new RTT::OutputPort<iodrivers_base::RawPacket>(it->name+"_out");
-		new_input_port = new RTT::InputPort<iodrivers_base::RawPacket>(it->name+"_in");
-		ports()->addPort(it->name+"_out", *new_output_port);
-		ports()->addPort(it->name+"_in", *new_input_port);
-		UART uart = {*it, new_output_port, new_input_port};
-		if(it->uart_module==1)			
-			uart_1_mapping.push_back(uart);
-		else
-			uart_0_mapping.push_back(uart);
-			
-	}}
-
-	//Setting UART up
-	//module 0
-	if(uart_0_mapping.size()>0)
-		if(!sr_uart_enable(srh, uart_0_mapping.front().uartconfig.uart_module, 
-					uart_0_mapping.front().uartconfig.mode, 
-					uart_0_mapping.front().uartconfig.baud, 
-					uart_0_mapping.front().uartconfig.rx, 
-					uart_0_mapping.front().uartconfig.tx))
-			RTT::log(RTT::Error) << uart_0_mapping.front().uartconfig.name << 
-					" could not be set up at rx pin " << uart_0_mapping.front().uartconfig.rx << 
-					" and tx pin " << uart_0_mapping.front().uartconfig.tx << 
-					". The followin error was received: " << sr_error_info(srh) << RTT::endlog();
-		else
-			uart_0_index = 0;
-		
-	
-	//module 1
-	if(uart_1_mapping.size()>0)
-		if(!sr_uart_enable(srh, uart_1_mapping.front().uartconfig.uart_module, 
-					uart_1_mapping.front().uartconfig.mode, 
-					uart_1_mapping.front().uartconfig.baud, 
-					uart_1_mapping.front().uartconfig.rx, 
-					uart_1_mapping.front().uartconfig.tx))
-			RTT::log(RTT::Error) << uart_1_mapping.front().uartconfig.name << 
-					" could not be set up at rx pin " << uart_1_mapping.front().uartconfig.rx << 
-					" and tx pin " << uart_1_mapping.front().uartconfig.tx << 
-					". The followin error was received: " << sr_error_info(srh) << RTT::endlog();
-		else		
-			uart_1_index = 0;
-		
-
-
-	/*
-		if(type == sr_pt_analog_in && AnIn[it->pin])
-			throw std::domain_error("Pin not available for analog input.");*/
-	return true;
-}
-
-void Task::displayAllDevices(SR_IPLIST* list)
+void Task::validateDigitalIOConfiguration(
+        set<string>& portNames,
+        vector<bool>& usedPins,
+        DsConfig const& config) const
 {
-    RTT::log(RTT::Warning) << "Devices found: \n";
-    while (list != NULL)
-    {
-        log(Warning)
-            <<  "  ip("
-            << (unsigned int) l->ip & 0xff << "."
-            << (unsigned int) (l->ip>>8) & 0xff << "."
-            << (unsigned int) (l->ip>>16) & 0xff << "."
-            << (unsigned int) (l->ip>>24) & 0xff << ")"
-            << " mac("
-            << hex << (int)l->mac[0] << "-"
-            << hex << (int)l->mac[1] << "-"
-            << hex << (int)l->mac[2] << "-"
-            << hex << (int)l->mac[3] << "-"
-            << hex << (int)l->mac[4] << "-"
-            << hex << (int)l->mac[5] << endlog();
-        l = l->next;	
+    for(DsConfig::const_iterator it = config.begin(); it != config.end(); ++it){
+        if(it->pin < 0)
+            throw logic_error("negative pin number found " + lexical_cast<string>(it->pin));
+        if(it->pin >= usedPins.size())
+            throw logic_error("pin number " + lexical_cast<string>(it->pin) + " too high, the last pin is " + lexical_cast<string>(usedPins.size()));
+        if(usedPins[it->pin])
+            throw logic_error("digital pin " + lexical_cast<string>(it->pin) + " is used for multiple digital I/O");
+        if(portNames.count(it->name))
+            throw logic_error("digital pin " + lexical_cast<string>(it->pin) + " configured to use the name '" + it->name + "' which is used by another I/O");
+
+        portNames.insert(it->name);
+        usedPins[it->pin] = true;
     }
 }
 
-std::string Task::findDeviceIP(std::string const& bcast_addr, std::string const& mac, int port)
+void Task::validateUARTPin(vector<bool> const& usedPins, unsigned int pin, unsigned int module)
 {
-	SR_IPLIST *list = sr_discover(bcast_addr.c_str(), port);
-	if (!list)
-	{  
-		log(RTT::Error) << "There are no devices on " << bcast_addr << endlog();
-		return std::string();
-	}
+    if(pin < 0){
+        throw logic_error("negative pin number found " +
+                lexical_cast<string>(pin) +
+                " for UART " + lexical_cast<string>(module));
+    }
+    if(pin >= usedPins.size()){
+        throw logic_error("pin number " + lexical_cast<string>(pin) +
+                " too high for UART " + lexical_cast<string>(module) +
+                ", the last pin is " + lexical_cast<string>(usedPins.size()));
+    }
+    if(!UART_SPI_CNT[pin]){
+        throw logic_error("pin " + lexical_cast<string>(pin) +
+                " configured to be used for UART " + lexical_cast<string>(module) +
+                " is not UART-capable");
+    }
+    if(usedPins[pin]){
+        throw logic_error("pin " + lexical_cast<string>(pin) +
+                " configured to be used for UART " + lexical_cast<string>(module) +
+                " is already in use");
+    }
+}
+
+void Task::validateUARTConfiguration(
+        set<string>& portNames,
+        vector<bool>& usedPins,
+        UARTsConfig const& uarts)
+{
+    vector<bool> usedUARTs(UART_MODULES_COUNT, false);
+
+    for(UARTsConfig::const_iterator it = uarts.begin(); it != uarts.end(); ++it) {
+        if(it->uart_module < 0 || it->uart_module >= usedUARTs.size())
+            throw logic_error("invalid UART module " + lexical_cast<string>(it->uart_module) +
+                    " found in configuration. There are " + lexical_cast<string>(usedUARTs.size()) + " UARTS in total");
+        if(usedUARTs[it->uart_module]){
+            throw logic_error("UART module " + lexical_cast<string>(it->uart_module) +
+                    " is configured multiple times");
+        }
+        usedUARTs[it->uart_module] = true;
+        validateUARTPin(usedPins, it->rx, it->uart_module);
+        usedPins[it->rx] = true;
+        validateUARTPin(usedPins, it->tx, it->uart_module);
+        usedPins[it->tx] = true;
+
+        if(it->mode > 5){
+            throw logic_error("UART mode " + lexical_cast<string>(it->mode) +
+                    " of UART module " + lexical_cast<string>(it->uart_module) +
+                    " is invalid");
+        }
+
+
+        if (portNames.count(it->name) > 0)
+            throw logic_error("UART " + lexical_cast<string>(it->uart_module) + " is configured to use the name '" + it->name + "' which is used by another I/O");
+        if (portNames.count("w" + it->name) > 0)
+            throw logic_error("UART " + lexical_cast<string>(it->uart_module) + " is configured to use the name 'w" + it->name + "' which is used by another I/O");
+
+        portNames.insert(it->name);
+        portNames.insert("w" + it->name);
+    }
+}
+
+void Task::validateConfiguration()
+{
+    set<string> portNames;
+    vector<bool> usedPins(NUMBER_OF_PINS, false);
+
+    validateDigitalIOConfiguration(portNames, usedPins, _digital_ins.get());
+    validateDigitalIOConfiguration(portNames, usedPins, _digital_outs.get());
+
+    validateUARTConfiguration(portNames, usedPins, _uarts.get());
+}
+
+void Task::resetHardware()
+{
+    for(int i = 0; i < UART_MODULES_COUNT; ++i){
+        uarts[i].enabled = false;
+        sr_uart_disable(srh, i);
+    }
+}
+
+void Task::setupHardware()
+{
+    DsConfig digitals[2] = { _digital_ins.get(), _digital_outs.get() };
+    for(int i = 0; i < 2; ++i){
+        for(DsConfig::iterator it = digitals[i].begin(); it != digitals[i].end(); ++it){
+            if(!sr_pin_setup(srh,it->pin,sr_pt_din_pullup))
+                throw runtime_error("cannot setup pin " + lexical_cast<string>(it->pin));
+        }
+    }
+
+    UARTsConfig uarts = _uarts.get();
+    for(UARTsConfig::iterator it = uarts.begin(); it != uarts.end(); ++it) {
+        //rx
+        if(!sr_pin_setup(srh,it->rx,sr_pt_din_pullup)){
+            throw logic_error("RX pin " + lexical_cast<string>(it->rx) +
+                    " configured to be used for UART " + lexical_cast<string>(it->uart_module) +
+                    " could not be set up: " + string(sr_error_info(srh)));
+        }
+
+        //tx
+        bool tx_pin_done;
+        bool inverted_logic = false;
+        if(inverted_logic)
+            tx_pin_done = sr_pin_setup(srh,it->tx,sr_pt_dout_opendrain_short);
+        else
+            tx_pin_done = sr_pin_setup(srh,it->tx,sr_pt_dout_opendrain_open);
+
+        if(!tx_pin_done){
+            throw logic_error("TX pin " + lexical_cast<string>(it->tx) +
+                    " configured to be used for UART " + lexical_cast<string>(it->uart_module) +
+                    " could not be set up: " + string(sr_error_info(srh)));
+        }
+
+        if(!sr_uart_enable(srh, it->uart_module, it->mode, it->baud, it->rx, it->tx)){
+            throw logic_error("could not enable UART module " + lexical_cast<string>(it->uart_module));
+        }
+    }
+}
+
+    template<typename MappingType>
+void Task::createDigitalPorts(DsConfig const& config, MappingType& mapping)
+{
+    for(DsConfig::const_iterator it = config.begin(); it != config.end(); ++it) {
+        // Creating Orogen component ports
+        typedef typename MappingType::value_type::PortType PortType;
+        PortType* port = new PortType(it->name);
+        ports()->addPort(it->name, *port);
+        typename MappingType::value_type din = {*it, port};
+        mapping.push_back(din);
+    }
+}
+
+void Task::createUARTPorts()
+{
+    UARTsConfig uarts_config = _uarts.get();
+    for(UARTsConfig::iterator it = uarts_config.begin(); it != uarts_config.end(); ++it) {
+        // Creating Orogen component ports
+        OutputPort<iodrivers_base::RawPacket>* new_output_port =
+            new OutputPort<iodrivers_base::RawPacket>(it->name);
+        InputPort<iodrivers_base::RawPacket>* new_input_port =
+            new InputPort<iodrivers_base::RawPacket>("w" + it->name);
+        ports()->addPort(new_output_port->getName(), *new_output_port);
+        ports()->addPort(new_input_port->getName(), *new_input_port);
+        UART config = {true, *it, new_output_port, new_input_port};
+        uarts[it->uart_module] = config;
+    }
+}
+
+static void displayAllDevices(SR_IPLIST* list)
+{
+    log(Warning) << "Devices found: \n";
+    while (list != NULL)
+    {
+        log(Warning)
+            << "  ip(" << ipv4ToString(list->ip) << ")"
+            << "  mac(" << macToString(list->mac) << ")" << endlog();
+        list = list->next;	
+    }
+}
+
+string findDeviceIP(string const& bcast_addr, string const& mac, int port)
+{
+    SR_IPLIST *list = sr_discover(bcast_addr.c_str(), port);
+    if (!list)
+    {  
+        log(Error) << "There are no devices on " << bcast_addr << endlog();
+        return string();
+    }
 
     SR_IPLIST *l = list;
-    while (l != NULL && std::string(l->mac, 6) != mac)
+    while (l != NULL && macToString(l->mac) != mac)
         l = l->next;
 
     if (!l)
     {
-        log(Error) << _mac.get() << " device not found." << endlog();
+        log(Error) << mac << " device not found." << endlog();
         displayAllDevices(list);
         sr_discover_free(list);
-        return std::string();
+        return string();
     }
 
-    std::ostringstream formatter;
-    formatter <<
-        (unsigned int) l->ip & 0xff << "."
-        (unsigned int) (l->ip>>8) & 0xff << "."
-        (unsigned int) (l->ip>>16) & 0xff << "."
-        (unsigned int) (l->ip>>24) & 0xff;
-
-    log(Info) << "Found device with IP " << formatter.str() << endlog();
+    string ip = ipv4ToString(l->ip);
+    log(Info) << "Found device with IP " << ip << endlog();
     sr_discover_free(list);
-    return formatter.str();
+    return ip;
 }
 
 /// The following lines are template definitions for the various state machine
@@ -255,24 +270,32 @@ bool Task::configureHook()
 {
     if (! TaskBase::configureHook())
         return false;
-	
-    std::string ip_addr;
+
     // Auto discovery or explicit IP
+    string ip_addr;
     if (_mac.get().empty())
         ip_addr = _ip.get();
     else
         ip_addr = findDeviceIP(_ip.get(), _mac.get(), _port.get());
 
-    srh = sr_open_eth(ip_addr, _port.get());
+    srh = sr_open_eth(ip_addr.c_str(), _port.get());
     if (!srh)
     {
         log(Error) << "could not open device at " << ip_addr << ":" << _port.get() << endlog();
         return false;
     }
-    if (!portsConfig())
+
+    try
+    {
+        resetHardware();
+        setupHardware();
+        createDigitalPorts(_digital_ins.get(), din_mapping);
+        createDigitalPorts(_digital_outs.get(), dout_mapping);
+        createUARTPorts();
+    }
+    catch(...)
     {
         sr_close(srh);
-        return false;
     }
     return true;
 }
@@ -281,121 +304,99 @@ bool Task::startHook()
 {
     if (! TaskBase::startHook())
         return false;
+
+    digitalOutState = 0;
     return true;
+}
+
+void Task::readDin()
+{
+    unsigned short state;
+    if(!sr_pins_get(srh,&state)){
+        log(Warning) << "cannot read digital pins" << endlog();
+        return exception(DIGITAL_IN_READ_ERROR);
+    }
+
+    raw_io::Digital sample = { ::base::Time::now(), false };
+    for(vector<Din>::iterator it = din_mapping.begin(); it != din_mapping.end(); ++it) {
+        sample.data = (state >> it->pinconfig.pin) & 0x1;
+        (it->port)->write(sample);
+    }
+}
+
+void Task::writeDout()
+{
+    unsigned short newState = digitalOutState;
+    for(vector<Dout>::iterator it = dout_mapping.begin(); it != dout_mapping.end(); ++it) {
+        raw_io::Digital sample;
+        if ((it->port)->read(sample) == NewData)
+        {
+            if (sample.data)
+                newState |= 1 << it->pinconfig.pin;
+            else newState &= ~(1 << it->pinconfig.pin);
+        }
+    }
+    if (newState == digitalOutState)
+        return;
+
+    if (!sr_pins_set(srh, newState)){
+        log(Warning) << "cannot write digital pins" << endlog();
+        return exception(DIGITAL_OUT_WRITE_ERROR);
+    }
+    digitalOutState = newState;
+}
+
+void Task::readUART(int uart_module, OutputPort<iodrivers_base::RawPacket>& port)
+{
+    //Read UART send through Output port
+    unsigned short readByteCount;
+
+    do
+    {
+        bool result =
+            sr_uart_read_arr(srh, uart_module, buffer, UART_BUFFER_MAX, &readByteCount);
+        if(!result){
+            log(Warning) << "UART from port " << port.getName() << 
+                " could not be read. The followin error was received: " << sr_error_info(srh) << 
+                endlog();
+            return exception(UART_READ_ERROR);
+        }
+        if (readByteCount > 0){
+            iodrivers_base::RawPacket packet;
+            packet.time = ::base::Time::now();
+            packet.data.assign(buffer, buffer + readByteCount);
+            port.write(packet);
+        }
+    } while(readByteCount > 0);
+}
+
+void Task::writeUART(int uart_module, InputPort<iodrivers_base::RawPacket>& port)
+{
+    iodrivers_base::RawPacket packet;
+    while (port.read(packet) == NewData){
+        bool result = sr_uart_write_arr(srh, uart_module, &(packet.data[0]), packet.data.size());
+        if(!result){
+            log(Warning) << "UART from port " << port.getName() << 
+                " could not be written. The following error was received: " << sr_error_info(srh) << 
+                endlog();
+            return exception(UART_WRITE_ERROR);
+        }
+    }
 }
 void Task::updateHook()
 {
     TaskBase::updateHook();
-	
-	//Digital output
-	raw_io::Digital out;
-	for(std::vector<Din>::iterator it = din_mapping.begin(); it != din_mapping.end(); ++it) {
-		if(!sr_pin_get(srh,it->pinconfig.pin,&(out.data))){
-			RTT::log(RTT::Warning) << "Pin "<< it->pinconfig.pin << " from port " << it->pinconfig.name << " could not be read." << RTT::endlog();
-		continue;		
-		}
-		out.time = base::Time::now();
-		 (it->output)->write(out);
-	}
-	
-	//Digital input
-	raw_io::Digital in;
-	for(std::vector<Dout>::iterator it = dout_mapping.begin(); it != dout_mapping.end(); ++it) {
-		(it->input)->read(in);
-		if(!sr_pin_set(srh,it->pinconfig.pin,in.data)){
-			RTT::log(RTT::Warning) << "Pin "<< it->pinconfig.pin << " from port " << it->pinconfig.name << " could not be written." << RTT::endlog();
-		continue;		
-		}
-	}
 
-	//UART module 0
-	if(uart_0_index >= 0){
-
-		//Read UART send through Output port
-		iodrivers_base::RawPacket out;		
-		if(!sr_uart_read_arr(srh, uart_0_mapping[uart_0_index].uartconfig.uart_module, UARTpacket, UARTbuffer, &UARTcnt))
-			RTT::log(RTT::Warning) << "UART from port " << uart_0_mapping[uart_0_index].uartconfig.name << 
-						" could not be read. The followin error was received: " << sr_error_info(srh) << 
-						RTT::endlog();
-		else if(UARTcnt>0){
-		out.time = base::Time::now();
-		out.data.assign(UARTpacket, UARTpacket + UARTcnt);
-		 (uart_0_mapping[uart_0_index].output)->write(out);
-		}
-	
-
-		//Read Input port send through UART
-		iodrivers_base::RawPacket in;
-		while (uart_0_mapping[uart_0_index].input->read(in) == RTT::NewData){
-
-			if(!sr_uart_write_arr(srh, uart_0_mapping[uart_0_index].uartconfig.uart_module, &(in.data[0]),in.data.size()))
-				RTT::log(RTT::Warning) << "UART from port " << uart_0_mapping[uart_0_index].uartconfig.name << 
-							" could not be written. The following error was received: " << sr_error_info(srh) << 
-							RTT::endlog();}
-
-		//increment index
-		if(uart_0_mapping.size() > 1){
-			if(++uart_0_index == uart_0_mapping.size())
-				uart_0_index=0;
-			
-			if(!sr_uart_enable(srh, uart_0_mapping[uart_0_index].uartconfig.uart_module, 
-						uart_0_mapping[uart_0_index].uartconfig.mode, 
-						uart_0_mapping[uart_0_index].uartconfig.baud, 
-						uart_0_mapping[uart_0_index].uartconfig.rx, 
-						uart_0_mapping[uart_0_index].uartconfig.tx)){
-				RTT::log(RTT::Error) << uart_0_mapping[uart_0_index].uartconfig.name << 
-						" could not be set up at rx pin " << uart_0_mapping[uart_0_index].uartconfig.rx << 
-						" and tx pin " << uart_0_mapping[uart_0_index].uartconfig.tx << 
-						". Stopping module. The following error was received: " << sr_error_info(srh) << RTT::endlog();
-
-				sr_uart_disable(srh,uart_0_mapping[uart_0_index].uartconfig.uart_module);
-				uart_0_index=-1;
-				}
-		}
-	}
-
-	//UART module 1
-	if(uart_1_index >= 0){
-		//Read UART send through Output port
-		iodrivers_base::RawPacket out;		
-		if(!sr_uart_read_arr(srh, uart_1_mapping[uart_1_index].uartconfig.uart_module, UARTpacket, UARTbuffer, &UARTcnt))
-			RTT::log(RTT::Warning) << "UART from port " << uart_1_mapping[uart_1_index].uartconfig.name << 
-						" could not be read. The following error was received: " << sr_error_info(srh) << 
-						RTT::endlog();
-		else if(UARTcnt>0){
-		out.time = base::Time::now();
-		out.data.assign(UARTpacket, UARTpacket + UARTcnt);
-		 (uart_1_mapping[uart_1_index].output)->write(out);
-		}
-	
-
-		//Read Input port send through UART
-		iodrivers_base::RawPacket in;
-		while (uart_0_mapping[uart_0_index].input->read(in) == RTT::NewData)
-			if(!sr_uart_write_arr(srh, uart_1_mapping[uart_1_index].uartconfig.uart_module, &(in.data[0]),in.data.size()))
-				RTT::log(RTT::Warning) << "UART from port " << uart_1_mapping[uart_1_index].uartconfig.name << 
-							" could not be written. The following error was received: " << sr_error_info(srh) << 
-							RTT::endlog();
-		//increment index
-		if(uart_1_mapping.size() > 1){
-			if(++uart_1_index == uart_1_mapping.size())
-				uart_1_index=0;
-			
-			if(!sr_uart_enable(srh, uart_1_mapping[uart_1_index].uartconfig.uart_module, 
-						uart_1_mapping[uart_1_index].uartconfig.mode, 
-						uart_1_mapping[uart_1_index].uartconfig.baud, 
-						uart_1_mapping[uart_1_index].uartconfig.rx, 
-						uart_1_mapping[uart_1_index].uartconfig.tx)){
-				RTT::log(RTT::Error) << uart_1_mapping[uart_1_index].uartconfig.name << 
-						" could not be set up at rx pin " << uart_1_mapping[uart_1_index].uartconfig.rx << 
-						" and tx pin " << uart_1_mapping[uart_1_index].uartconfig.tx << 
-						". Stopping module. The following error was received: " << sr_error_info(srh) << RTT::endlog();
-				
-				sr_uart_disable(srh,uart_1_mapping[uart_1_index].uartconfig.uart_module);
-				uart_1_index=-1;
-			}
-		}
-	}
+    readDin();
+    writeDout();
+    for (int i = 0; i < 2; ++i){
+        UART const& uart = uarts[i];
+        if (uart.enabled)
+        {
+            readUART(i, *uart.output);
+            writeUART(i, *uart.input);
+        }
+    }
 }
 void Task::errorHook()
 {
@@ -408,47 +409,25 @@ void Task::stopHook()
 void Task::cleanupHook()
 {
     TaskBase::cleanupHook();
-	if (!srh) return;
-	
-	for(std::vector<Din>::iterator it = din_mapping.begin(); it != din_mapping.end(); ++it) {
-		ports()->removePort(it->output->getName());
-		PinUse[(it->pinconfig).pin]=false;
-		delete it->output;
-	}
-	
-	
-	for(std::vector<Dout>::iterator it = dout_mapping.begin(); it != dout_mapping.end(); ++it) {
-		ports()->removePort(it->input->getName());
-		PinUse[(it->pinconfig).pin]=false;
-		delete it->input;
-	}
 
+    for(vector<Din>::iterator it = din_mapping.begin(); it != din_mapping.end(); ++it) {
+        ports()->removePort(it->port->getName());
+        delete it->port;
+    }
 
-	for(std::vector<UART>::iterator it = uart_0_mapping.begin(); it != uart_0_mapping.end(); ++it) {
-		ports()->removePort(it->output->getName());
-		ports()->removePort(it->input->getName());
-		PinUse[(it->uartconfig).rx]=false;
-		PinUse[(it->uartconfig).tx]=false;
-		delete it->output;
-		delete it->input;
-	}
-	
-	for(std::vector<UART>::iterator it = uart_1_mapping.begin(); it != uart_1_mapping.end(); ++it) {
-		ports()->removePort(it->output->getName());
-		ports()->removePort(it->input->getName());
-		PinUse[(it->uartconfig).rx]=false;
-		PinUse[(it->uartconfig).tx]=false;
-		delete it->output;
-		delete it->input;
-	}
-	
-	
-	if(uart_0_index>=0)
-		sr_uart_disable(srh, 0);
-	
-	if(uart_1_index>=0)
-		sr_uart_disable(srh, 1);
-	
-	sr_close(srh);
-	srh=NULL;
+    for(vector<Dout>::iterator it = dout_mapping.begin(); it != dout_mapping.end(); ++it) {
+        ports()->removePort(it->port->getName());
+        delete it->port;
+    }
+
+    for (int i = 0; i < UART_MODULES_COUNT; ++i)
+    {
+        ports()->removePort(uarts[i].output->getName());
+        ports()->removePort(uarts[i].input->getName());
+        delete uarts[i].output;
+        delete uarts[i].input;
+    }
+    resetHardware();
+    sr_close(srh);
+    srh=NULL;
 }

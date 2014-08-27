@@ -5,33 +5,44 @@ version "0.1"
 # using_library "bus_schremote"
 # import_types_from "bus_schremote/bus_schremoteType.hpp"
 
-using_library "raw_io"
-import_types_from "raw_io/raw_io.hpp"
-
+import_types_from "raw_io"
 import_types_from "iodrivers_base"
 
 import_types_from "bus_schremoteTypes.hpp"
 import_types_from "base"
 
-
 task_context "Task" do
-
     needs_configuration
 
-    property "ip", "/std/string"
-    property "mac", "/std/string", ""
+    # The device IP or the broadcast address of the subnet it resides on
+    #
+    # If the mac property is empty, this is interpreted as the IP of the device.
+    # Otherwise, this is the broadcast address of the subnet it resides on, and
+    # mac must contain the device's MAC address
+    property "ip",  "/std/string"
+    # The mac address of the device
+    #
+    # If the mac property is empty, this is interpreted as the IP of the device.
+    # Otherwise, this is the broadcast address of the subnet it resides on, and
+    # mac must contain the device's MAC address
+    property "mac", "/std/string"
+    # The port number (default is 3101)
+    property "port", "/uint32_t", 3101
+
     property "uarts", "bus_schremote/UARTsConfig"
     property "digital_ins", "bus_schremote/DsConfig"
     property "digital_outs", "bus_schremote/DsConfig"
 
-    dynamic_input_port /\w+/, "/iodrivers_base/RawPacket"
-    dynamic_input_port /\w+/, "/raw_io/Digital"
+    dynamic_input_port /in_\w+/, "/iodrivers_base/RawPacket"
+    dynamic_input_port /in_\w+/, "/raw_io/Digital"
 
-    dynamic_output_port /\w+/, "/iodrivers_base/RawPacket"
-    dynamic_output_port /\w+/, "/raw_io/Digital"
+    dynamic_output_port /out_\w+/, "/iodrivers_base/RawPacket"
+    dynamic_output_port /out_\w+/, "/raw_io/Digital"
 
     port_driven
 
     periodic 0.0001
+
+    exception_states :DIGITAL_OUT_WRITE_ERROR, :DIGITAL_IN_READ_ERROR, :UART_READ_ERROR, :UART_WRITE_ERROR
 end
 
