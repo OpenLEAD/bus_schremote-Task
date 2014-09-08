@@ -44,7 +44,7 @@ namespace bus_schremote {
         void validateDigitalIOConfiguration(
                 std::set<std::string>& portNames,
                 std::vector<bool>& usedPins,
-                DsConfig const& config) const;
+                PinsConfig const& config) const;
         void validateUARTPin(std::vector<bool> const& usedPins, unsigned int pin, unsigned int module);
         void validateUARTConfiguration(
                 std::set<std::string>& portNames,
@@ -55,7 +55,7 @@ namespace bus_schremote {
         void setupHardware();
 
         template<typename MappingType>
-        void createDigitalPorts(DsConfig const& config, MappingType& mapping);
+        void createPinsPorts(PinsConfig const& config, MappingType& mapping);
         void createUARTPorts();
 
         void readDin();
@@ -68,7 +68,7 @@ namespace bus_schremote {
 	struct Din
 	{
             typedef RTT::OutputPort<raw_io::Digital> PortType;
-            DConfig pinconfig;
+            PinConfig config;
             PortType* port;
 	};
 	std::vector<Din> din_mapping;
@@ -76,15 +76,23 @@ namespace bus_schremote {
 	struct Dout
 	{
             typedef RTT::InputPort<raw_io::Digital> PortType;
-            DConfig pinconfig;
+            PinConfig config;
             PortType* port;
 	};
 	std::vector<Dout> dout_mapping;
 
+        struct Analog
+        {
+            typedef RTT::OutputPort<raw_io::Analog> PortType;
+            PinConfig config;
+            PortType* port;
+        };
+	std::vector<Analog> analog_mapping;
+
 	struct UART
 	{
             bool enabled;
-            UARTConfig uartconfig;
+            UARTConfig config;
             RTT::OutputPort<iodrivers_base::RawPacket>* output;
             RTT::InputPort<iodrivers_base::RawPacket>* input;
 	};

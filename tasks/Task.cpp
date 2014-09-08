@@ -59,9 +59,9 @@ Task::~Task()
 void Task::validateDigitalIOConfiguration(
         set<string>& portNames,
         vector<bool>& usedPins,
-        DsConfig const& config) const
+        PinsConfig const& config) const
 {
-    for(DsConfig::const_iterator it = config.begin(); it != config.end(); ++it){
+    for(PinsConfig::const_iterator it = config.begin(); it != config.end(); ++it){
         if(it->pin < 0)
             throw logic_error("negative pin number found " + lexical_cast<string>(it->pin));
         if(it->pin >= usedPins.size())
@@ -157,12 +157,29 @@ void Task::resetHardware()
     }
 }
 
+static sr_pin_type pinTypeToSDK(PIN_TYPES type)
+{
+    switch (type)
+    {
+        case PIN_ANALOG_IN: return sr_pt_analog_in;
+        case PIN_DIN: return sr_pt_din;
+        case PIN_DIN_PULLUP: return sr_pt_din_pullup;
+        case PIN_DOUT_LOW: return sr_pt_dout_low;
+        case PIN_DOUT_HIGH: return sr_pt_dout_high;
+        case PIN_DOUT_OPENDRAIN_SHORT: return sr_pt_dout_opendrain_short;
+        case PIN_DOUT_OPENDRAIN_OPEN: return sr_pt_dout_opendrain_open;
+        default:
+            throw std::logic_error("pin type not handled in switch in pinTypeToSDK");
+    };
+}
+
 void Task::setupHardware()
 {
-    DsConfig digitals[2] = { _digital_ins.get(), _digital_outs.get() };
-    for(int i = 0; i < 2; ++i){
-        for(DsConfig::iterator it = digitals[i].begin(); it != digitals[i].end(); ++it){
-            if(!sr_pin_setup(srh,it->pin,sr_pt_din_pullup))
+    PinsConfig pins[3] = { _digital_ins.get(), _digital_outs.get(), _analog_outs.get() };
+    for(int i = 0; i < 3; ++i){
+        for(PinsConfig::iterator it = pins[i].begin(); it != pins[i].end(); ++it){
+            sr_pin_type pin_type = pinTypeToSDK(it->type);
+            if(!sr_pin_setup(srh,it->pin,pin_type))
                 throw runtime_error("cannot setup pin " + lexical_cast<string>(it->pin) + ": " + sr_error_info(srh));
         }
     }
@@ -196,10 +213,10 @@ void Task::setupHardware()
     }
 }
 
-    template<typename MappingType>
-void Task::createDigitalPorts(DsConfig const& config, MappingType& mapping)
+template<typename MappingType>
+void Task::createPinsPorts(PinsConfig const& config, MappingType& mapping)
 {
-    for(DsConfig::const_iterator it = config.begin(); it != config.end(); ++it) {
+    for(PinsConfig::const_iterator it = config.begin(); it != config.end(); ++it) {
         // Creating Orogen component ports
         typedef typename MappingType::value_type::PortType PortType;
         PortType* port = new PortType(it->name);
@@ -292,8 +309,9 @@ bool Task::configureHook()
     {
         resetHardware();
         setupHardware();
-        createDigitalPorts(_digital_ins.get(), din_mapping);
-        createDigitalPorts(_digital_outs.get(), dout_mapping);
+        createPinsPorts(_digital_ins.get(), din_mapping);
+        createPinsPorts(_digital_outs.get(), dout_mapping);
+        createPinsPorts(_analog_outs.get(), analog_mapping);
         createUARTPorts();
     }
     catch(...)
@@ -317,7 +335,7 @@ void Task::readDin()
 {
     for(vector<Din>::iterator it = din_mapping.begin(); it != din_mapping.end(); ++it) {
         raw_io::Digital sample = { ::base::Time::now(), false };
-        int pin = it->pinconfig.pin;
+        int pin = it->config.pin;
         if (!sr_pin_get(srh, pin, &sample.data))
         {
             log(Warning) << "cannot read digital pin " << pin << ": " << sr_error_info(srh) << endlog();
@@ -336,8 +354,8 @@ void Task::writeDout()
         if ((it->port)->read(sample) == NewData)
         {
             if (sample.data)
-                newState |= 1 << it->pinconfig.pin;
-            else newState &= ~(1 << it->pinconfig.pin);
+                newState |= 1 << it->config.pin;
+            else newState &= ~(1 << it->config.pin);
         }
     }
     if (newState == digitalOutState)

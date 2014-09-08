@@ -15,17 +15,31 @@ namespace bus_schremote {
         UART_MODE_STD = UART_MODE_PARITY_NO | UART_MODE_STOP_ONE
     };
 
+    enum PIN_TYPES
+    {
+        PIN_ANALOG_IN,
+        PIN_DIN,
+        PIN_DIN_PULLUP,
+        PIN_DOUT_LOW,
+        PIN_DOUT_HIGH,
+        PIN_DOUT_OPENDRAIN_OPEN,
+        PIN_DOUT_OPENDRAIN_SHORT
+    };
+
     /** Configuration of a digital I/O
      *
      * It is used for both input and output
      */
-    struct DConfig
+    struct PinConfig
     {
         /** The pin index
          *
          * It is zero based
          */
         unsigned int pin;
+        /** The pin type
+         */
+        PIN_TYPES type;
         /** The I/O name
          *
          * The port created on the task interface will be named after this. For
@@ -34,8 +48,12 @@ namespace bus_schremote {
          * is for a digital output, the port will be an output port.
          */
         std::string name;
+
+        PinConfig()
+            : pin(-1)
+            , type(PIN_DIN) {}
     };
-    typedef std::vector<DConfig> DsConfig;
+    typedef std::vector<PinConfig> PinsConfig;
 
     /** Configuration of an UART module */
     struct UARTConfig
