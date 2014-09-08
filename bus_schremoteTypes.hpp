@@ -3,12 +3,6 @@
 
 #include <string>
 #include <vector>
-/* If you need to define types specific to your oroGen components, define them
- * here. Required headers must be included explicitly
- *
- * However, it is common that you will only import types from your library, in
- * which case you do not need this file
- */
 
 namespace bus_schremote {
 
@@ -21,13 +15,29 @@ namespace bus_schremote {
         UART_MODE_STD = UART_MODE_PARITY_NO | UART_MODE_STOP_ONE
     };
 
+    /** Configuration of a digital I/O
+     *
+     * It is used for both input and output
+     */
     struct DConfig
     {
+        /** The pin index
+         *
+         * It is zero based
+         */
         unsigned int pin;
+        /** The I/O name
+         *
+         * The port created on the task interface will be named after this. For
+         * instance, if 'name' is 'pressure' for a digital input, an input port
+         * with the name 'pressure' will be created on the task interface. If it
+         * is for a digital output, the port will be an output port.
+         */
         std::string name;
     };
     typedef std::vector<DConfig> DsConfig;
 
+    /** Configuration of an UART module */
     struct UARTConfig
     {
         UARTConfig()
@@ -35,11 +45,38 @@ namespace bus_schremote {
             , mode(UART_MODE_STD)
             , baud(9600)
         {}
+        /** The index of the UART module that should be configured.
+         *
+         * It is zero-based
+         */
         unsigned int uart_module;
+        /** The UART mode as an OR-based field of values in UART_MODES
+         *
+         * Defaults to UART_MODE_STD
+         */
         int mode; 
+
+        /** The GPIO pin that should be used for TX
+         *
+         * Index is 0 based
+         */
         int tx;
+        /** The GPIO pin that should be used for RX
+         *
+         * Index is 0 based
+         */
         int rx;
+        /** The baud rate
+         */
         int baud;
+        /** The name of the UART
+         *
+         * The ports created on the task interface will be named after this. For
+         * instance, if 'name' is 'pressure', the task's output port (on which
+         * will be sent the data *sent* by the pressure sensor) will be named
+         * 'pressure', and the task's input port (on which will be received the
+         * data that should be sent to the pressure sensor) will be named
+         */
         std::string name;
     };
     typedef std::vector<UARTConfig> UARTsConfig;
