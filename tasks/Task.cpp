@@ -163,7 +163,7 @@ void Task::setupHardware()
     for(int i = 0; i < 2; ++i){
         for(DsConfig::iterator it = digitals[i].begin(); it != digitals[i].end(); ++it){
             if(!sr_pin_setup(srh,it->pin,sr_pt_din_pullup))
-                throw runtime_error("cannot setup pin " + lexical_cast<string>(it->pin));
+                throw runtime_error("cannot setup pin " + lexical_cast<string>(it->pin) + ": " + sr_error_info(srh));
         }
     }
 
@@ -191,7 +191,7 @@ void Task::setupHardware()
         }
 
         if(!sr_uart_enable(srh, it->uart_module, it->mode, it->baud, it->rx, it->tx)){
-            throw logic_error("could not enable UART module " + lexical_cast<string>(it->uart_module));
+            throw logic_error("could not enable UART module " + lexical_cast<string>(it->uart_module) + ": " + sr_error_info(srh));
         }
     }
 }
@@ -343,7 +343,7 @@ void Task::writeDout()
         return;
 
     if (!sr_pins_set(srh, newState)){
-        log(Warning) << "cannot write digital pins" << endlog();
+        log(Warning) << "cannot write digital pins: " << sr_error_info(srh) << endlog();
         return exception(DIGITAL_OUT_WRITE_ERROR);
     }
     digitalOutState = newState;
@@ -360,8 +360,7 @@ void Task::readUART(int uart_module, OutputPort<iodrivers_base::RawPacket>& port
             sr_uart_read_arr(srh, uart_module, buffer, UART_BUFFER_MAX, &readByteCount);
         if(!result){
             log(Warning) << "UART from port " << port.getName() << 
-                " could not be read. The followin error was received: " << sr_error_info(srh) << 
-                endlog();
+                " could not be read: " << sr_error_info(srh) << endlog();
             return exception(UART_READ_ERROR);
         }
         if (readByteCount > 0){
@@ -380,8 +379,7 @@ void Task::writeUART(int uart_module, InputPort<iodrivers_base::RawPacket>& port
         bool result = sr_uart_write_arr(srh, uart_module, &(packet.data[0]), packet.data.size());
         if(!result){
             log(Warning) << "UART from port " << port.getName() << 
-                " could not be written. The following error was received: " << sr_error_info(srh) << 
-                endlog();
+                " could not be written: " << sr_error_info(srh) << endlog();
             return exception(UART_WRITE_ERROR);
         }
     }
