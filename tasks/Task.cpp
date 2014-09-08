@@ -426,6 +426,9 @@ void Task::cleanupHook()
 
     for (int i = 0; i < UART_MODULES_COUNT; ++i)
     {
+        if (!uarts[i].enabled)
+            continue;
+
         ports()->removePort(uarts[i].output->getName());
         ports()->removePort(uarts[i].input->getName());
         delete uarts[i].output;
