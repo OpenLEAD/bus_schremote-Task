@@ -416,11 +416,13 @@ void Task::cleanupHook()
         ports()->removePort(it->port->getName());
         delete it->port;
     }
+    din_mapping.clear();
 
     for(vector<Dout>::iterator it = dout_mapping.begin(); it != dout_mapping.end(); ++it) {
         ports()->removePort(it->port->getName());
         delete it->port;
     }
+    dout_mapping.clear();
 
     for (int i = 0; i < UART_MODULES_COUNT; ++i)
     {
