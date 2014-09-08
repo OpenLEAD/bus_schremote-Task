@@ -299,6 +299,7 @@ bool Task::configureHook()
     catch(...)
     {
         sr_close(srh);
+        throw;
     }
     return true;
 }
