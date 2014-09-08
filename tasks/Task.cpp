@@ -3,6 +3,8 @@
 #include "Task.hpp"
 #include <rtt/Logger.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string.hpp>
+#include <iomanip>
 
 using namespace bus_schremote;
 using namespace std;
@@ -19,13 +21,13 @@ const bool Task::UART_SPI_CNT[Task::NUMBER_OF_PINS] =
 static string macToString(unsigned char const* mac)
 {
     ostringstream formatter;
-    formatter
-        << hex << static_cast<int>(mac[0]) << "-"
-        << hex << static_cast<int>(mac[1]) << "-"
-        << hex << static_cast<int>(mac[2]) << "-"
-        << hex << static_cast<int>(mac[3]) << "-"
-        << hex << static_cast<int>(mac[4]) << "-"
-        << hex << static_cast<int>(mac[5]);
+    formatter << hex << setfill('0') 
+        << setw(2) << static_cast<int>(mac[0]) << ":"
+        << setw(2) << static_cast<int>(mac[1]) << ":"
+        << setw(2) << static_cast<int>(mac[2]) << ":"
+        << setw(2) << static_cast<int>(mac[3]) << ":"
+        << setw(2) << static_cast<int>(mac[4]) << ":"
+        << setw(2) << static_cast<int>(mac[5]);
     return formatter.str();
 }
 
@@ -245,7 +247,8 @@ string findDeviceIP(string const& bcast_addr, string const& mac, int port)
     }
 
     SR_IPLIST *l = list;
-    while (l != NULL && macToString(l->mac) != mac)
+    string lcase_mac = boost::to_lower_copy(mac);
+    while (l != NULL && macToString(l->mac) != lcase_mac)
         l = l->next;
 
     if (!l)
