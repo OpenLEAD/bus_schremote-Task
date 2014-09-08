@@ -315,15 +315,15 @@ bool Task::startHook()
 
 void Task::readDin()
 {
-    unsigned short state;
-    if(!sr_pins_get(srh,&state)){
-        log(Warning) << "cannot read digital pins" << endlog();
-        return exception(DIGITAL_IN_READ_ERROR);
-    }
-
-    raw_io::Digital sample = { ::base::Time::now(), false };
     for(vector<Din>::iterator it = din_mapping.begin(); it != din_mapping.end(); ++it) {
-        sample.data = (state >> it->pinconfig.pin) & 0x1;
+        raw_io::Digital sample = { ::base::Time::now(), false };
+        int pin = it->pinconfig.pin;
+        if (!sr_pin_get(srh, pin, &sample.data))
+        {
+            log(Warning) << "cannot read digital pin " << pin << ": " << sr_error_info(srh) << endlog();
+            return exception(DIGITAL_IN_READ_ERROR);
+        }
+
         (it->port)->write(sample);
     }
 }
