@@ -256,7 +256,7 @@ string findDeviceIP(string const& bcast_addr, string const& mac, int port)
         log(Error) << mac << " device not found." << endlog();
         displayAllDevices(list);
         sr_discover_free(list);
-        return string();
+        throw std::runtime_error("could not find device with MAC " + mac + " on broadcast address " + bcast_addr);
     }
 
     string ip = ipv4ToString(l->ip);
