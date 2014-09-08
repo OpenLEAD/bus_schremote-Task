@@ -94,11 +94,13 @@ namespace bus_schremote {
          * will be sent the data *sent* by the pressure sensor) will be named
          * 'pressure', and the task's input port (on which will be received the
          * data that should be sent to the pressure sensor) will be named
+         *
+         * In addition, a pressure_stats port of type iodrivers_base/Status is
+         * added to give statistics about the I/O on this port.
          */
         std::string name;
     };
     typedef std::vector<UARTConfig> UARTsConfig;
-
 }
 
 #endif

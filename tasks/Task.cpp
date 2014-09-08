@@ -235,9 +235,12 @@ void Task::createUARTPorts()
             new OutputPort<iodrivers_base::RawPacket>(it->name);
         InputPort<iodrivers_base::RawPacket>* new_input_port =
             new InputPort<iodrivers_base::RawPacket>("w" + it->name);
+        OutputPort<iodrivers_base::Status>* status_port =
+            new OutputPort<iodrivers_base::Status>(it->name + "_status");
         ports()->addPort(new_output_port->getName(), *new_output_port);
         ports()->addPort(new_input_port->getName(), *new_input_port);
-        UART config = {true, *it, new_output_port, new_input_port};
+        ports()->addPort(status_port->getName(), *status_port);
+        UART config = {true, *it, iodrivers_base::Status(), new_output_port, new_input_port, status_port};
         uarts[it->uart_module] = config;
     }
 }
@@ -368,19 +371,20 @@ void Task::writeDout()
     digitalOutState = newState;
 }
 
-void Task::readUART(int uart_module, OutputPort<iodrivers_base::RawPacket>& port)
+int Task::readUART(int uart_module, OutputPort<iodrivers_base::RawPacket>& port)
 {
+    int totalCount = 0;
     //Read UART send through Output port
-    unsigned short readByteCount;
-
-    do
+    while(true)
     {
+        unsigned short readByteCount;
         bool result =
             sr_uart_read_arr(srh, uart_module, buffer, UART_BUFFER_MAX, &readByteCount);
         if(!result){
             log(Warning) << "UART from port " << port.getName() << 
                 " could not be read: " << sr_error_info(srh) << endlog();
-            return exception(UART_READ_ERROR);
+            exception(UART_READ_ERROR);
+            return 0;
         }
         if (readByteCount > 0){
             iodrivers_base::RawPacket packet;
@@ -388,20 +392,28 @@ void Task::readUART(int uart_module, OutputPort<iodrivers_base::RawPacket>& port
             packet.data.assign(buffer, buffer + readByteCount);
             port.write(packet);
         }
-    } while(readByteCount > 0);
+        else break;
+
+        totalCount += readByteCount;
+    }
+    return totalCount;
 }
 
-void Task::writeUART(int uart_module, InputPort<iodrivers_base::RawPacket>& port)
+int Task::writeUART(int uart_module, InputPort<iodrivers_base::RawPacket>& port)
 {
+    int totalCount = 0;
     iodrivers_base::RawPacket packet;
     while (port.read(packet) == NewData){
         bool result = sr_uart_write_arr(srh, uart_module, &(packet.data[0]), packet.data.size());
         if(!result){
             log(Warning) << "UART from port " << port.getName() << 
                 " could not be written: " << sr_error_info(srh) << endlog();
-            return exception(UART_WRITE_ERROR);
+            exception(UART_WRITE_ERROR);
+            return 0;
         }
+        totalCount += packet.data.size();
     }
+    return totalCount;
 }
 void Task::updateHook()
 {
@@ -410,11 +422,13 @@ void Task::updateHook()
     readDin();
     writeDout();
     for (int i = 0; i < 2; ++i){
-        UART const& uart = uarts[i];
+        UART& uart = uarts[i];
         if (uart.enabled)
         {
-            readUART(i, *uart.output);
-            writeUART(i, *uart.input);
+            uart.status.good_rx += readUART(i, *uart.output);
+            uart.status.tx += writeUART(i, *uart.input);
+            uart.status.stamp = ::base::Time::now();
+            uart.status_port->write(uart.status);
         }
     }
 }
@@ -449,8 +463,11 @@ void Task::cleanupHook()
 
         ports()->removePort(uarts[i].output->getName());
         ports()->removePort(uarts[i].input->getName());
+        ports()->removePort(uarts[i].status_port->getName());
         delete uarts[i].output;
         delete uarts[i].input;
+        delete uarts[i].status_port;
+        uarts[i].enabled = false;
     }
     resetHardware();
     sr_close(srh);

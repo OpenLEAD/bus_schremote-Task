@@ -38,6 +38,7 @@ task_context "Task" do
     dynamic_input_port /w\w+/, "/raw_io/Digital"
 
     dynamic_output_port /\w+/, "/iodrivers_base/RawPacket"
+    dynamic_output_port /\w+_status/, "/iodrivers_base/Status"
     dynamic_output_port /\w+/, "/raw_io/Digital"
     dynamic_output_port /\w+/, "/raw_io/Analog"
 

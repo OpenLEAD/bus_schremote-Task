@@ -60,9 +60,9 @@ namespace bus_schremote {
 
         void readDin();
         void writeDout();
-        void readUART(int uart_module,
+        int readUART(int uart_module,
                 RTT::OutputPort<iodrivers_base::RawPacket>& port);
-        void writeUART(int uart_module,
+        int writeUART(int uart_module,
                 RTT::InputPort<iodrivers_base::RawPacket>& port);
 
 	struct Din
@@ -93,8 +93,10 @@ namespace bus_schremote {
 	{
             bool enabled;
             UARTConfig config;
+            iodrivers_base::Status status;
             RTT::OutputPort<iodrivers_base::RawPacket>* output;
             RTT::InputPort<iodrivers_base::RawPacket>* input;
+            RTT::OutputPort<iodrivers_base::Status>* status_port;
 	};
         UART uarts[2];
 
