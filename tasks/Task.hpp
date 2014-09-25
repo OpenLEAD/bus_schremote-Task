@@ -32,6 +32,8 @@ namespace bus_schremote {
     protected:
 	SR_HANDLE srh;
         static const int UART_MODULES_COUNT = 2;
+        static const int I2C_MODULES_COUNT = 2;
+        static const int CNT_MODULES_COUNT = 4;
         static const int NUMBER_OF_PINS = 12;
 	static const bool AnIn[NUMBER_OF_PINS];
 	static const bool I2C[NUMBER_OF_PINS];

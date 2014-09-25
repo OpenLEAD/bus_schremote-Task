@@ -155,6 +155,11 @@ void Task::resetHardware()
         uarts[i].enabled = false;
         sr_uart_disable(srh, i);
     }
+    sr_spi_disable(srh);
+    for (int i = 0; i < I2C_MODULES_COUNT; ++i)
+        sr_i2c_disable(srh, i);
+    for (int i = 0; i < CNT_MODULES_COUNT; ++i)
+        sr_cnt_disable(srh, i);
 }
 
 static sr_pin_type pinTypeToSDK(PIN_TYPES type)
