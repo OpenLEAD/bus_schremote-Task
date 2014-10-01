@@ -63,6 +63,7 @@ namespace bus_schremote {
         UARTConfig()
             : uart_module(0)
             , mode(UART_MODE_STD)
+            , tx_type(PIN_DOUT_OPENDRAIN_OPEN)
             , baud(9600)
         {}
         /** The index of the UART module that should be configured.
@@ -81,6 +82,10 @@ namespace bus_schremote {
          * Index is 0 based
          */
         int tx;
+        /** In which mode the TX pin should be set. It has to be one of the DOUT
+         * types
+         */
+        PIN_TYPES tx_type;
         /** The GPIO pin that should be used for RX
          *
          * Index is 0 based

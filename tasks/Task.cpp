@@ -198,15 +198,9 @@ void Task::setupHardware()
                     " could not be set up: " + string(sr_error_info(srh)));
         }
 
-        //tx
-        bool tx_pin_done;
-        bool inverted_logic = false;
-        if(inverted_logic)
-            tx_pin_done = sr_pin_setup(srh,it->tx,sr_pt_dout_opendrain_short);
-        else
-            tx_pin_done = sr_pin_setup(srh,it->tx,sr_pt_dout_opendrain_open);
 
-        if(!tx_pin_done){
+        sr_pin_type tx_type = pinTypeToSDK(it->tx_type);
+        if(!sr_pin_setup(srh,it->tx,tx_type)){
             throw logic_error("TX pin " + lexical_cast<string>(it->tx) +
                     " configured to be used for UART " + lexical_cast<string>(it->uart_module) +
                     " could not be set up: " + string(sr_error_info(srh)));
