@@ -3,6 +3,8 @@
 
 #include <string>
 #include <vector>
+#include <boost/cstdint.hpp>
+#include <iodrivers_base/Status.hpp>
 
 namespace bus_schremote {
 
@@ -101,6 +103,15 @@ namespace bus_schremote {
         std::string name;
     };
     typedef std::vector<UARTConfig> UARTsConfig;
+
+    struct UARTStatus : public iodrivers_base::Status
+    {
+        UARTStatus()
+            : overflow(0) {}
+
+        /** How many times the internal UART RX buffer could have overflowed */
+        boost::uint16_t overflow;
+    };
 }
 
 #endif

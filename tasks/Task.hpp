@@ -38,9 +38,8 @@ namespace bus_schremote {
 	static const bool AnIn[NUMBER_OF_PINS];
 	static const bool I2C[NUMBER_OF_PINS];
 	static const bool UART_SPI_CNT[NUMBER_OF_PINS];
-        static const unsigned short  UART_BUFFER_MAX = 65535u;
+        static const unsigned short  UART_BUFFER_MAX = 256u;
 
-        boost::uint8_t buffer[UART_BUFFER_MAX];
         unsigned short digitalOutState;
 
         void validateDigitalIOConfiguration(
@@ -62,10 +61,9 @@ namespace bus_schremote {
 
         void readDin();
         void writeDout();
-        int readUART(int uart_module,
-                RTT::OutputPort<iodrivers_base::RawPacket>& port);
-        int writeUART(int uart_module,
-                RTT::InputPort<iodrivers_base::RawPacket>& port);
+        struct UART;
+        int readUART(int uart_module, UART& uart);
+        int writeUART(int uart_module, UART& uart);
 
 	struct Din
 	{
@@ -95,10 +93,11 @@ namespace bus_schremote {
 	{
             bool enabled;
             UARTConfig config;
-            iodrivers_base::Status status;
+            UARTStatus status;
             RTT::OutputPort<iodrivers_base::RawPacket>* output;
             RTT::InputPort<iodrivers_base::RawPacket>* input;
-            RTT::OutputPort<iodrivers_base::Status>* status_port;
+            RTT::OutputPort<UARTStatus>* status_port;
+            iodrivers_base::RawPacket packet;
 	};
         UART uarts[2];
 

@@ -28,6 +28,9 @@ task_context "Task" do
     property "mac", "/std/string"
     # The port number (default is 3101)
     property "port", "/uint32_t", 3101
+    # If true, the component will fail with UART_READ_BUFFER_OVERFLOW if it
+    # seems that we did not read the UART fast enough
+    property 'fail_on_uart_buffer_overflow', '/bool', true
 
     property "uarts", "bus_schremote/UARTsConfig"
     property "digital_ins", "bus_schremote/PinsConfig"
@@ -38,7 +41,7 @@ task_context "Task" do
     dynamic_input_port /w\w+/, "/raw_io/Digital"
 
     dynamic_output_port /\w+/, "/iodrivers_base/RawPacket"
-    dynamic_output_port /\w+_status/, "/iodrivers_base/Status"
+    dynamic_output_port /\w+_status/, "/bus_schremote/UARTStatus"
     dynamic_output_port /\w+/, "/raw_io/Digital"
     dynamic_output_port /\w+/, "/raw_io/Analog"
 
@@ -46,6 +49,10 @@ task_context "Task" do
 
     periodic 0.001
 
-    exception_states :DIGITAL_OUT_WRITE_ERROR, :DIGITAL_IN_READ_ERROR, :UART_READ_ERROR, :UART_WRITE_ERROR
+    exception_states :DIGITAL_OUT_WRITE_ERROR,
+        :DIGITAL_IN_READ_ERROR,
+        :UART_READ_ERROR,
+        :UART_WRITE_ERROR,
+        :UART_READ_BUFFER_OVERFLOW
 end
 
