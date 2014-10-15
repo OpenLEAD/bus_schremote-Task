@@ -65,6 +65,7 @@ namespace bus_schremote {
             , mode(UART_MODE_STD)
             , tx_type(PIN_DOUT_OPENDRAIN_OPEN)
             , baud(9600)
+            , enable_send(-1)
         {}
         /** The index of the UART module that should be configured.
          *
@@ -106,6 +107,15 @@ namespace bus_schremote {
          * added to give statistics about the I/O on this port.
          */
         std::string name;
+
+        // HACK FOR ROSA
+        //
+        // If positive, the pin listed here will be set to 1 when we send
+        // some stuff on the UART. In addition, the component will reset it
+        // to zero when we estimate that the data has probably been sent
+        //
+        // The pin needs to also be configured as a digital input
+        int enable_send;
     };
     typedef std::vector<UARTConfig> UARTsConfig;
 

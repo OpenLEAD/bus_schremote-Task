@@ -409,7 +409,31 @@ int Task::writeUART(int uart_module, UART& uart)
     int totalCount = 0;
     iodrivers_base::RawPacket packet;
     while (uart.input->read(packet) == NewData){
+        int enable_send = uart.config.enable_send;
+        int timeout_ms = packet.data.size() * 1000 * 8 / uart.config.baud;
+        if (enable_send != -1)
+        {
+            if (!sr_pin_set(srh, enable_send, true))
+            {
+                log(Warning) << "failed to set the enable send pin " << enable_send << " for UART " << uart.config.name << ": " << sr_error_info(srh) << endlog();
+                exception(DIGITAL_OUT_WRITE_ERROR);
+                return 0;
+            }
+        }
+
         bool result = sr_uart_write_arr(srh, uart_module, &(packet.data[0]), packet.data.size());
+
+        if (enable_send != -1)
+        {
+            usleep(timeout_ms * 1000);
+            if (!sr_pin_set(srh, enable_send, false))
+            {
+                log(Warning) << "failed to set the enable send pin " << enable_send << " for UART " << uart.config.name << ": " << sr_error_info(srh) << endlog();
+                exception(DIGITAL_OUT_WRITE_ERROR);
+                return 0;
+            }
+        }
+
         if(!result){
             log(Warning) << "could not write data to UART " << uart.config.name << ": "
                 << sr_error_info(srh) << endlog();
