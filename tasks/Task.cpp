@@ -357,24 +357,16 @@ void Task::readDin()
 
 void Task::writeDout()
 {
-    unsigned short newState = digitalOutState;
     for(vector<Dout>::iterator it = dout_mapping.begin(); it != dout_mapping.end(); ++it) {
         raw_io::Digital sample;
         if ((it->port)->read(sample) == NewData)
         {
-            if (sample.data)
-                newState |= 1 << it->config.pin;
-            else newState &= ~(1 << it->config.pin);
+            if (!sr_pin_set(srh, it->config.pin, sample.data)){
+                log(Warning) << "cannot write digital pin " << it->config.pin << ": " << sr_error_info(srh) << endlog();
+                return exception(DIGITAL_OUT_WRITE_ERROR);
+            }
         }
     }
-    if (newState == digitalOutState)
-        return;
-
-    if (!sr_pins_set(srh, newState)){
-        log(Warning) << "cannot write digital pins: " << sr_error_info(srh) << endlog();
-        return exception(DIGITAL_OUT_WRITE_ERROR);
-    }
-    digitalOutState = newState;
 }
 
 int Task::readUART(int uart_module, UART& uart)
