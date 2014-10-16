@@ -35,7 +35,7 @@ task_context "Task" do
     property "uarts", "bus_schremote/UARTsConfig"
     property "digital_ins", "bus_schremote/PinsConfig"
     property "digital_outs", "bus_schremote/PinsConfig"
-    property "analog_outs", "bus_schremote/PinsConfig"
+    property "analog_ins", "bus_schremote/PinsConfig"
 
     dynamic_input_port /w\w+/, "/iodrivers_base/RawPacket"
     dynamic_input_port /w\w+/, "/raw_io/Digital"
@@ -51,6 +51,7 @@ task_context "Task" do
 
     exception_states :DIGITAL_OUT_WRITE_ERROR,
         :DIGITAL_IN_READ_ERROR,
+        :ANALOG_IN_READ_ERROR,
         :UART_READ_ERROR,
         :UART_WRITE_ERROR,
         :UART_READ_BUFFER_OVERFLOW

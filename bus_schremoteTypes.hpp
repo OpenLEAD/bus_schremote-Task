@@ -50,10 +50,18 @@ namespace bus_schremote {
          * is for a digital output, the port will be an output port.
          */
         std::string name;
+        /** Scale factor for analog inputs
+         *
+         * If set to 1, the reported value is going to be the value read on the
+         * analog input, in volts. Use this if you have a voltage divider
+         * between the sensor you are trying to read and the schremote input
+         */
+        float analog_scale_factor;
 
         PinConfig()
             : pin(-1)
-            , type(PIN_DIN) {}
+            , type(PIN_DIN)
+            , analog_scale_factor(1) {}
     };
     typedef std::vector<PinConfig> PinsConfig;
 

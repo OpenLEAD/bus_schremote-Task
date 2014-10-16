@@ -180,7 +180,7 @@ static sr_pin_type pinTypeToSDK(PIN_TYPES type)
 
 void Task::setupHardware()
 {
-    PinsConfig pins[3] = { _digital_ins.get(), _digital_outs.get(), _analog_outs.get() };
+    PinsConfig pins[3] = { _digital_ins.get(), _digital_outs.get(), _analog_ins.get() };
     for(int i = 0; i < 3; ++i){
         for(PinsConfig::iterator it = pins[i].begin(); it != pins[i].end(); ++it){
             sr_pin_type pin_type = pinTypeToSDK(it->type);
@@ -320,7 +320,7 @@ bool Task::configureHook()
         setupHardware();
         createPinsPorts(_digital_ins.get(), din_mapping);
         createPinsPorts(_digital_outs.get(), dout_mapping);
-        createPinsPorts(_analog_outs.get(), analog_mapping);
+        createPinsPorts(_analog_ins.get(), analog_mapping);
         createUARTPorts();
     }
     catch(...)
@@ -338,6 +338,24 @@ bool Task::startHook()
 
     digitalOutState = 0;
     return true;
+}
+
+void Task::readAnalog()
+{
+    for(vector<Analog>::iterator it = analog_mapping.begin(); it != analog_mapping.end(); ++it) {
+        int pin = it->config.pin;
+        unsigned short data;
+        if (!sr_pin_get_analog(srh, pin, &data))
+        {
+            log(Warning) << "cannot read analog pin " << pin << ": " << sr_error_info(srh) << endlog();
+            return exception(ANALOG_IN_READ_ERROR);
+        }
+
+        raw_io::Analog sample = { ::base::Time::now(), 0 };
+        sample.data = it->config.analog_scale_factor *
+            3.3 * static_cast<float>(data) / 1024;
+        (it->port)->write(sample);
+    }
 }
 
 void Task::readDin()
@@ -468,6 +486,7 @@ void Task::updateHook()
 
     readDin();
     writeDout();
+    readAnalog();
 }
 
 void Task::errorHook()

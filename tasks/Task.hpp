@@ -59,6 +59,7 @@ namespace bus_schremote {
         void createPinsPorts(PinsConfig const& config, MappingType& mapping);
         void createUARTPorts();
 
+        void readAnalog();
         void readDin();
         void writeDout();
         struct UART;
