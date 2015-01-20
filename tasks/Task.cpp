@@ -343,6 +343,10 @@ bool Task::startHook()
 void Task::readAnalog()
 {
     for(vector<Analog>::iterator it = analog_mapping.begin(); it != analog_mapping.end(); ++it) {
+        Analog::PortType& port = *(it->port);
+        if (!port.connected())
+            continue;
+
         int pin = it->config.pin;
         unsigned short data;
         if (!sr_pin_get_analog(srh, pin, &data))
@@ -354,13 +358,17 @@ void Task::readAnalog()
         raw_io::Analog sample = { ::base::Time::now(), 0 };
         sample.data = it->config.analog_scale_factor *
             3.3 * static_cast<float>(data) / 1024;
-        (it->port)->write(sample);
+        port.write(sample);
     }
 }
 
 void Task::readDin()
 {
     for(vector<Din>::iterator it = din_mapping.begin(); it != din_mapping.end(); ++it) {
+        Din::PortType& port = *(it->port);
+        if (!port.connected())
+            continue;
+
         raw_io::Digital sample = { ::base::Time::now(), false };
         int pin = it->config.pin;
         if (!sr_pin_get(srh, pin, &sample.data))
@@ -369,7 +377,7 @@ void Task::readDin()
             return exception(DIGITAL_IN_READ_ERROR);
         }
 
-        (it->port)->write(sample);
+        port.write(sample);
     }
 }
 
