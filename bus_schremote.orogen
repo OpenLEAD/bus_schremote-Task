@@ -31,6 +31,9 @@ task_context "Task" do
     # If true, the component will fail with UART_READ_BUFFER_OVERFLOW if it
     # seems that we did not read the UART fast enough
     property 'fail_on_uart_buffer_overflow', '/bool', true
+    # The reference voltage provided to the bus_schremote. This is necessary to
+    # propertly convert the A/D values to voltage on analog inputs
+    property 'reference_voltage', '/double', 3.3
 
     property "uarts", "bus_schremote/UARTsConfig"
     property "digital_ins", "bus_schremote/PinsConfig"

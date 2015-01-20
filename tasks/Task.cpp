@@ -357,7 +357,7 @@ void Task::readAnalog()
 
         raw_io::Analog sample = { ::base::Time::now(), 0 };
         sample.data = it->config.analog_scale_factor *
-            3.3 * static_cast<float>(data) / 1024;
+            _reference_voltage.get() * static_cast<float>(data) / 1024;
         port.write(sample);
     }
 }
