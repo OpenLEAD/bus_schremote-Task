@@ -355,7 +355,7 @@ void Task::readAnalog()
             return exception(ANALOG_IN_READ_ERROR);
         }
 
-        raw_io::Analog sample = { ::base::Time::now(), 0 };
+        raw_io::Analog sample ( ::base::Time::now(), 0 );
         sample.data = it->config.analog_scale_factor *
             _reference_voltage.get() * static_cast<float>(data) / 1024;
         port.write(sample);
@@ -369,7 +369,7 @@ void Task::readDin()
         if (!port.connected())
             continue;
 
-        raw_io::Digital sample = { ::base::Time::now(), false };
+        raw_io::Digital sample (::base::Time::now(), false);
         int pin = it->config.pin;
         if (!sr_pin_get(srh, pin, &sample.data))
         {
